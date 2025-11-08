@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apple Disease Detection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2e7d32;
+            text-align: center;
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            padding: 30px;
+            text-align: center;
+            margin: 20px 0;
+            cursor: pointer;
+        }
+        .upload-area:hover {
+            background-color: #f0f0f0;
+        }
+        #preview {
+            max-width: 100%;
+            margin-top: 20px;
+            display: none;
+        }
+        button {
+            background-color: #2e7d32;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #1b5e20;
+        }
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #e8f5e9;
+            border-radius: 5px;
+            display: none;
+        }
+        .treatment-section {
+            margin-top: 15px;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Apple Disease Detection</h1>
+        <p>Upload an image of an apple leaf to detect diseases and get treatment recommendations</p>
+        
+        <div class="upload-area" id="uploadArea">
+            <p>Click to upload an image or drag and drop</p>
+            <input type="file" id="fileInput" accept="image/*" style="display: none;">
+            <img id="preview" alt="Preview">
+        </div>
+        <button id="predictBtn" disabled>Analyze Image</button>
+        
+        <div class="result" id="result">
+            <h2 id="diseaseName">Disease Name</h2>
+            <p id="diseaseDescription">Description will appear here</p>
+            
+            <div class="treatment-section">
+                <h3>Recommended Treatment</h3>
+                <ul id="treatmentList"></ul>
+            </div>
+            
+            <div class="treatment-section">
+                <h3>Prevention Strategies</h3>
+                <ul id="preventionList"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const preview = document.getElementById('preview');
+        const predictBtn = document.getElementById('predictBtn');
+        const resultDiv = document.getElementById('result');
+        const diseaseName = document.getElementById('diseaseName');
+        const diseaseDescription = document.getElementById('diseaseDescription');
+        const treatmentList = document.getElementById('treatmentList');
+        const preventionList = document.getElementById('preventionList');
+        
+        // Handle file selection
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    preview.src = event.target.result;
+                    preview.style.display = 'block';
+                    predictBtn.disabled = false;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        // Handle drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.backgroundColor = '#f0f0f0';
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.style.backgroundColor = '';
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.backgroundColor = '';
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                const event = new Event('change');
+                fileInput.dispatchEvent(event);
+            }
+        });
+        
+        // Handle prediction
+        predictBtn.addEventListener('click', async () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+            
+            predictBtn.disabled = true;
+            predictBtn.textContent = 'Analyzing...';
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                
+                // Display results
+                diseaseName.textContent = data.disease.replace(/_/g, ' ');
+                diseaseDescription.textContent = data.description;
+                
+                treatmentList.innerHTML = '';
+                data.treatment.forEach(item => {
+                    const li = document.createElement('li');
+                    li.textContent = item;
+                    treatmentList.appendChild(li);
+                });
+                
+                preventionList.innerHTML = '';
+                data.prevention.forEach(item => {
+                    const li = document.createElement('li');
+                    li.textContent = item;
+                    preventionList.appendChild(li);
+                });
+                
+                resultDiv.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while processing the image');
+            } finally {
+                predictBtn.disabled = false;
+                predictBtn.textContent = 'Analyze Image';
+            }
+        });
+    </script>
+</body>
+</html>
